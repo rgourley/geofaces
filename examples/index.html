@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>geofaces — procedural flat geometric avatars</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #0d0d12; color: #e7e7ee;
+    font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif;
+    padding: 32px 24px 80px;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  p.sub { margin: 0 0 24px; color: #8b8b99; font-size: 13px; max-width: 660px; }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 28px; }
+  input, button {
+    font: inherit; border-radius: 10px; border: 1px solid #26262f;
+    background: #16161d; color: #e7e7ee; padding: 9px 13px;
+  }
+  input { min-width: 220px; }
+  button { cursor: pointer; background: #23232e; border-color: #34343f; }
+  button:hover { background: #2c2c3a; }
+  .grid {
+    display: grid; gap: 22px 14px;
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  }
+  .cell { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .cell svg { width: 88px; height: 88px; border-radius: 18px; display: block; }
+  .cell .name { font-size: 11px; color: #9a9aa8; max-width: 92px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; }
+  .big { display: flex; align-items: center; gap: 20px; margin-bottom: 28px;
+    padding: 16px; background: #14141b; border: 1px solid #23232e; border-radius: 16px; }
+  .big svg { width: 120px; height: 120px; border-radius: 26px; }
+  .big .meta { font-size: 13px; color: #9a9aa8; }
+  .big .meta b { color: #e7e7ee; }
+</style>
+</head>
+<body>
+  <h1>geofaces</h1>
+  <p class="sub">Procedural flat-geometric faces. Same name → same face, every time. Zero assets, zero deps. Light-only fills keep features readable; about 60% of faces get an oversized lens or split overlay that blends a second color into the face.</p>
+
+  <div class="controls">
+    <input id="name" placeholder="type a name or email…" value="rob gourley" />
+    <button id="add">Add</button>
+    <button id="shuffle">Random set</button>
+  </div>
+
+  <div class="big" id="big"></div>
+  <div class="grid" id="grid"></div>
+
+<script>
+// ---- deterministic hash (boring-avatars style) ----
+function hashCode(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) { h = ((h << 5) - h) + name.charCodeAt(i); h &= h; }
+  return Math.abs(h);
+}
+const digit = (n, p) => Math.floor((n / Math.pow(10, p)) % 10);
+const unit  = (n, r, p) => { const v = n % r; return (p !== undefined && digit(n, p) % 2 === 0) ? -v : v; };
+const bool  = (n, p) => digit(n, p) % 2 === 0;
+const pick  = (n, p, len) => digit(n, p) % len;
+
+// ---- palettes: only LIGHT fills (face/second/tile); dark color reserved for ink ----
+const PALETTES = [
+  { ink:"#20202c", c:["#FF6B6B","#FFD93D","#6BCB77","#FF9F45","#67C7FF"] },
+  { ink:"#5b2333", c:["#F8B195","#F67280","#FFC2A1","#FFD6A5","#FF9AA2"] },
+  { ink:"#0d3b3b", c:["#2DD4A8","#FFD166","#FF7B9C","#83E8BA","#7FD8FF"] },
+  { ink:"#1a3a3a", c:["#FFBF69","#FFB23E","#46D7C8","#CBF3F0","#FFD6A5"] },
+  { ink:"#3a2a40", c:["#FF8FB1","#FFC2E2","#FFE3A9","#9DE0AD","#A0E7E5"] },
+  { ink:"#22223b", c:["#FFADAD","#A0C4FF","#BDB2FF","#FDFFB6","#9BF6FF"] },
+  { ink:"#1a2238", c:["#FFCB77","#FE8A8F","#7FE0CE","#FEF0C9","#8FD9F2"] },
+  { ink:"#2a1a1a", c:["#FFB85C","#F4A261","#E9C46A","#90D2C0","#FFB4A2"] },
+  { ink:"#2b2d42", c:["#8ECAE6","#A2D2FF","#BDE0FE","#CDB4DB","#FFC8DD"] },
+  { ink:"#1d3038", c:["#95D5B2","#B7E4C7","#D8F3DC","#FFE066","#FFA552"] },
+  { ink:"#3a1f2b", c:["#FF99C8","#FCF6BD","#D0F4DE","#A9DEF9","#E4C1F9"] },
+  { ink:"#22303a", c:["#76C893","#99D98C","#B5E48C","#D9ED92","#FFD166"] },
+  { ink:"#2e2a1f", c:["#FFE5A0","#FFCB69","#FF9B54","#FFB07C","#FFD6A5"] },
+  { ink:"#1e2a3a", c:["#90E0EF","#62CDE0","#ADE8F4","#CAF0F8","#FFD6A5"] },
+  { ink:"#2a1e3a", c:["#CDB4DB","#FFC8DD","#FFAFCC","#BDE0FE","#A2D2FF"] },
+  { ink:"#2b241a", c:["#F6BD60","#F7EDE2","#F5CAC3","#9CC0B7","#F28482"] },
+  { ink:"#3a2820", c:["#E8A87C","#F2D5A0","#C7CEA6","#EC9A6D","#F4E3C1"] },
+  { ink:"#23303a", c:["#7EC4CF","#B8E0D2","#FAD4C0","#F5B895","#D6E5E3"] },
+  { ink:"#2e2440", c:["#C3AED6","#E3D7F4","#FFF3B0","#FFD6E0","#B5D6E0"] },
+  { ink:"#33231f", c:["#FF8C6B","#FFB997","#FCEFA1","#A8E6CF","#FFD3B6"] },
+  { ink:"#262a40", c:["#A6B1E1","#C8CFF0","#F7D9E3","#FBC4D0","#D4DCF0"] },
+  { ink:"#1f3329", c:["#88D8B0","#B7E5C2","#F5E8A0","#F2C879","#D4EAC0"] },
+  { ink:"#2a2438", c:["#D7A9E3","#E9C6F0","#B8E0F0","#A9D6E5","#F2D0E0"] },
+  { ink:"#2b261c", c:["#F2C57C","#F7E1A0","#BFD8B8","#7FB7BE","#E6D2A8"] },
+];
+function colors(h) {
+  const p = PALETTES[h % PALETTES.length], b = p.c, L = b.length;
+  const tile = pick(h, 1, L);
+  const face = (tile + 1 + pick(h, 2, L - 1)) % L;
+  const second = (face + 1 + pick(h, 3, L - 1)) % L;
+  const accent = (second + 1 + pick(h, 4, L - 1)) % L;
+  return { tile: b[tile], face: b[face], second: b[second], accent: b[accent], ink: p.ink };
+}
+
+// ---- shapes ----
+function faceShape(s, fill) { switch (s) {
+  case 0: return `<circle cx="50" cy="50" r="40" fill="${fill}"/>`;
+  case 1: return `<rect x="12" y="12" width="76" height="76" rx="16" fill="${fill}"/>`;
+  case 2: return `<rect x="11" y="11" width="78" height="78" rx="34" fill="${fill}"/>`;
+  case 3: return `<polygon points="50,10 86,32 86,68 50,90 14,68 14,32" fill="${fill}"/>`;
+  case 4: return `<rect x="20" y="9" width="60" height="82" rx="30" fill="${fill}"/>`;
+  case 5: return `<polygon points="30,12 70,12 88,30 88,70 70,88 30,88 12,70 12,30" fill="${fill}"/>`;
+}}
+// blend strength varies per seed: 0.30–0.60 in 0.05 steps (use well-spread low bits)
+const blendOp = (h) => (0.3 + (Math.floor(h / 13) % 7) / 20).toFixed(2);
+// oversized lens — offset clamped so it always covers a big central chunk of the face
+function lens(h, col) {
+  const side = bool(h, 5) ? 1 : -1;
+  const cx = 50 + side * (8 + (h % 7));      // 8–14 off-center → large overlap
+  const cy = 50 + unit(h, 11, 6);
+  const r  = 40 + (digit(h, 7) % 4);          // 40–43
+  return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${col.second}" style="mix-blend-mode:multiply" opacity="${blendOp(h)}"/>`;
+}
+// hard half split — two-tone face
+function split(h, col) {
+  const vertical = bool(h, 6);
+  const cut = 50 + unit(h, 14, 7);
+  const x = vertical ? cut : 0, y = vertical ? 0 : cut;
+  const w = vertical ? 100 - cut : 100, ht = vertical ? 100 : 100 - cut;
+  return `<rect x="${x}" y="${y}" width="${w}" height="${ht}" fill="${col.second}" style="mix-blend-mode:multiply" opacity="${blendOp(h)}"/>`;
+}
+// big diagonal slab
+function diagonal(h, col) {
+  const off = unit(h, 18, 5);
+  const pts = bool(h, 7) ? `0,${20+off} 100,${60+off} 100,100 0,100`
+                         : `100,${20+off} 0,${60+off} 0,100 100,100`;
+  return `<polygon points="${pts}" fill="${col.second}" style="mix-blend-mode:multiply" opacity="${blendOp(h)}"/>`;
+}
+// split plus a smaller accent circle (second blend region)
+function splitAccent(h, col) {
+  const op = (blendOp(h) * 0.8).toFixed(2);
+  return split(h, col)
+    + `<circle cx="${30 + unit(h, 16, 5)}" cy="38" r="22" fill="${col.accent}" style="mix-blend-mode:multiply" opacity="${op}"/>`;
+}
+function overlay(h, col) {
+  // one seeded pick across the whole family — lens weighted highest, split+accent rare
+  const t = Math.floor(h / 100) % 24;     // well-distributed, decorrelated from palette
+  if (t <= 8)  return lens(h, col);       // 0–8   lens        ~37%
+  if (t <= 13) return split(h, col);      // 9–13  split        ~21%
+  if (t <= 17) return diagonal(h, col);   // 14–17 diagonal     ~17%
+  if (t === 18) return splitAccent(h, col);// 18   split+accent  ~4%
+  return "";                              // 19–23 plain        ~21%
+}
+
+function eye(cx, cy, style, s, ink) { switch (style) {
+  case 0: return `<circle cx="${cx}" cy="${cy}" r="${s}" fill="${ink}"/>`;
+  case 1: return `<rect x="${cx-2}" y="${cy-s}" width="4" height="${s*2}" rx="2" fill="${ink}"/>`;
+  case 2: return `<rect x="${cx-s*0.82}" y="${cy-s*0.82}" width="${s*1.64}" height="${s*1.64}" rx="${s*0.55}" fill="${ink}"/>`;
+  case 3: return `<path d="M ${cx-s} ${cy+1} A ${s} ${s} 0 0 1 ${cx+s} ${cy+1}" fill="none" stroke="${ink}" stroke-width="3" stroke-linecap="round"/>`;
+  case 4: return `<ellipse cx="${cx}" cy="${cy}" rx="${s*0.72}" ry="${s}" fill="${ink}"/>`;
+  case 5: return `<path d="M ${cx-s} ${cy} A ${s} ${s} 0 0 0 ${cx+s} ${cy}" fill="none" stroke="${ink}" stroke-width="3" stroke-linecap="round"/>`;
+  case 6: return `<rect x="${cx-s}" y="${cy-1.6}" width="${s*2}" height="3.2" rx="1.6" fill="${ink}"/>`;
+}}
+function mouth(cy, style, w, ink) { switch (style) {
+  case 0: return `<path d="M ${50-w} ${cy} Q 50 ${cy+w} ${50+w} ${cy}" fill="none" stroke="${ink}" stroke-width="3.5" stroke-linecap="round"/>`;
+  case 1: return `<rect x="${50-w}" y="${cy-1.6}" width="${w*2}" height="3.2" rx="1.6" fill="${ink}"/>`;
+  case 2: return `<path d="M ${50-w} ${cy} A ${w} ${w} 0 0 0 ${50+w} ${cy} Z" fill="${ink}"/>`;
+  case 3: return `<circle cx="50" cy="${cy}" r="${Math.max(3,w*0.45)}" fill="${ink}"/>`;
+  case 5: return `<ellipse cx="50" cy="${cy}" rx="${w}" ry="${w*0.6}" fill="${ink}"/>`;
+  case 6: return `<rect x="${50-w}" y="${cy-2.5}" width="${w*2}" height="5" rx="2.5" fill="${ink}"/>`;
+  case 7: return `<path d="M ${50-w} ${cy} Q 50 ${cy+w*1.3} ${50+w} ${cy} Q 50 ${cy+w*0.35} ${50-w} ${cy} Z" fill="${ink}"/>`;
+}}
+
+function faceSVGString(name) {
+  const h = hashCode(name || " "), col = colors(h);
+  // filled grin (2) is the signature mouth; smile (0) and open-laugh (7) back it up; all filled
+  const MOUTHS = [2, 2, 2, 2, 2, 0, 0, 0, 7, 7, 7, 1, 3, 5, 6];
+  const fShape = pick(h, 2, 6), eStyle = pick(h, 3, 7);
+  const mStyle = MOUTHS[Math.floor(h / 17) % MOUTHS.length];
+  const eyeSpacing = 14 + (h % 5), eyeSize = 4 + (digit(h, 5) % 3), eyeY = 43 + unit(h, 4, 6);
+  const mouthY = 63 + (digit(h, 6) % 7), mouthW = 8 + (digit(h, 7) % 7);
+  const tilt = unit(h, 6, 8);
+  const lx = 50 - eyeSpacing, rx = 50 + eyeSpacing, cid = "f" + h;
+  const features = eye(lx, eyeY, eStyle, eyeSize, col.ink) + eye(rx, eyeY, eStyle, eyeSize, col.ink) + mouth(mouthY, mStyle, mouthW, col.ink);
+  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <defs><clipPath id="${cid}">${faceShape(fShape, '#000')}</clipPath></defs>
+    <rect width="100" height="100" fill="${col.tile}"/>
+    <g transform="rotate(${tilt} 50 50)">
+      <g clip-path="url(#${cid})" style="isolation:isolate">
+        ${faceShape(fShape, col.face)}
+        ${overlay(h, col)}
+      </g>
+      ${features}
+    </g>
+  </svg>`;
+}
+
+// ---- UI (names via textContent; only our own SVG is parsed) ----
+const grid = document.getElementById("grid");
+const big = document.getElementById("big");
+const seeds = ["rob gourley","massive.com","alphawire","wallhunt","kraken-quant","tickmark",
+  "ada lovelace","grace hopper","linus","satoshi","jane doe","john smith","greatrobots","mdskills",
+  "charlie","delta","echo","foxtrot","golf","hotel"];
+
+function svgNode(name) {
+  const doc = new DOMParser().parseFromString(faceSVGString(name), "image/svg+xml");
+  return doc.documentElement;
+}
+function cell(name) {
+  const d = document.createElement("div"); d.className = "cell";
+  const lbl = document.createElement("div"); lbl.className = "name"; lbl.textContent = name;
+  d.append(svgNode(name), lbl); return d;
+}
+function renderBig(name) {
+  const meta = document.createElement("div"); meta.className = "meta";
+  const b = document.createElement("b"); b.textContent = name;
+  meta.append(b, document.createElement("br"), document.createTextNode("seed " + hashCode(name)));
+  big.replaceChildren(svgNode(name), meta);
+}
+function render(list) { grid.replaceChildren(...list.map(cell)); }
+function randomSet() {
+  const out = [];
+  for (let i = 0; i < 30; i++) out.push("seed-" + Math.floor(Math.random() * 1e6));
+  render(out);
+}
+
+document.getElementById("add").onclick = () => {
+  const v = document.getElementById("name").value.trim();
+  if (!v) return;
+  renderBig(v); grid.prepend(cell(v));
+};
+document.getElementById("name").addEventListener("keydown", e => {
+  if (e.key === "Enter") document.getElementById("add").click();
+});
+document.getElementById("shuffle").onclick = randomSet;
+
+renderBig("rob gourley");
+render(seeds);
+</script>
+</body>
+</html>

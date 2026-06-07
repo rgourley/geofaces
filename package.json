@@ -1,0 +1,72 @@
+{
+  "name": "geofaces",
+  "version": "0.1.0",
+  "description": "Deterministic, zero-dependency flat-geometric avatar faces. Same name, same face, generated as SVG with nothing to host.",
+  "keywords": [
+    "avatar",
+    "avatars",
+    "svg",
+    "identicon",
+    "generative",
+    "geometric",
+    "profile-picture",
+    "placeholder",
+    "react",
+    "deterministic"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "Rob Gourley",
+    "url": "https://www.robertcreative.com/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rgourley/geofaces.git"
+  },
+  "homepage": "https://github.com/rgourley/geofaces#readme",
+  "bugs": "https://github.com/rgourley/geofaces/issues",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "assets"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "unpkg": "./dist/geofaces.global.js",
+  "jsdelivr": "./dist/geofaces.global.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js",
+      "require": "./dist/react.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "samples": "node scripts/gen-samples.mjs",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "react": ">=17"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "react": "^18.2.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0"
+  }
+}
