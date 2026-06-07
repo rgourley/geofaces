@@ -4,7 +4,8 @@
 
 **Deterministic flat-geometric avatar faces. Same name, same face. Nothing to host.**
 
-<img src="assets/hero.svg" alt="A grid of forty geofaces avatars" width="720" />
+<img width="1200" height="630" alt="image-1780793779638" src="https://github.com/user-attachments/assets/1730d33a-3659-4d14-a11c-c2dc415c1563" />
+
 
 [![npm](https://img.shields.io/npm/v/geofaces.svg)](https://www.npmjs.com/package/geofaces) · zero dependencies · ~3&nbsp;KB gzipped · MIT
 
