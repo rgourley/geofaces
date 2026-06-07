@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; }
+  body {
+    background: #f4f4f2;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    display: flex; align-items: center;
+  }
+  .left { flex: 1; padding: 0 0 0 84px; }
+  h1 { font-size: 108px; line-height: 1; letter-spacing: -0.035em; color: #18181b; font-weight: 800; }
+  .tag { font-size: 35px; line-height: 1.28; color: #3f3f46; margin-top: 26px; max-width: 540px; font-weight: 500; }
+  .sub { font-size: 25px; color: #6b6b76; margin-top: 16px; }
+  .chips { margin-top: 30px; display: flex; gap: 10px; }
+  .chip { font-size: 19px; color: #52525b; background: #e9e9e5; border-radius: 999px; padding: 7px 16px; font-weight: 600; }
+  .url { font-size: 25px; color: #18181b; margin-top: 34px; font-weight: 700; }
+  .right { width: 506px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px;
+    padding-right: 70px; }
+  .right .a { width: 138px; height: 138px; }
+  .right .a svg { width: 100%; height: 100%; display: block; }
+</style>
+</head>
+<body>
+  <div class="left">
+    <h1>geofaces</h1>
+    <div class="tag">Deterministic flat-geometric avatar faces.</div>
+    <div class="sub">Same name, same face. Nothing to host.</div>
+    <div class="chips">
+      <span class="chip">MIT</span>
+      <span class="chip">zero deps</span>
+      <span class="chip">~3 KB</span>
+      <span class="chip">SVG</span>
+    </div>
+    <div class="url">github.com/rgourley/geofaces</div>
+  </div>
+  <div class="right" id="grid"></div>
+
+  <script src="../dist/geofaces.global.js"></script>
+  <script>
+    const seeds = ["aria","milo","noor","kenji","lena","tariq","ines","priya","soren"];
+    const svgNode = (s) => new DOMParser().parseFromString(s, "image/svg+xml").documentElement;
+    const grid = document.getElementById("grid");
+    seeds.forEach((s) => {
+      const d = document.createElement("div"); d.className = "a";
+      d.appendChild(svgNode(geofaces.geoFace(s, { size: 138, shape: "rounded" })));
+      grid.appendChild(d);
+    });
+  </script>
+</body>
+</html>
