@@ -53,7 +53,7 @@
     "dev": "tsup --watch",
     "samples": "node scripts/gen-samples.mjs",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run build"
+    "prepare": "npm run build"
   },
   "peerDependencies": {
     "react": ">=17"
